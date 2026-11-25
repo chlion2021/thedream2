@@ -1,0 +1,68 @@
+name: Build macOS ARM64 App
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # macos-latest 现在是 Apple Silicon (arm64)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show arch
+        run: uname -m
+
+      - name: Compile (arm64)
+        run: |
+          clang -arch arm64 \
+                -framework Cocoa \
+                -fobjc-arc \
+                -O2 \
+                main.m -o AllInDream
+
+      - name: Verify binary
+        run: |
+          file AllInDream
+          # 应显示: Mach-O 64-bit executable arm64
+
+      - name: Package as .app bundle
+        run: |
+          mkdir -p "AllInDream.app/Contents/MacOS"
+          mkdir -p "AllInDream.app/Contents/Resources"
+          cp AllInDream "AllInDream.app/Contents/MacOS/AllInDream"
+
+          cat > "AllInDream.app/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>AllInDream</string>
+            <key>CFBundleDisplayName</key><string>All in dream</string>
+            <key>CFBundleIdentifier</key><string>com.example.allindream</string>
+            <key>CFBundleVersion</key><string>1.0</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>CFBundleExecutable</key><string>AllInDream</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          EOF
+
+          # 临时签名（ad-hoc），避免 Gatekeeper 提示"已损坏"
+          codesign --force --deep --sign - "AllInDream.app" || true
+
+          # 打包为 zip（保留可执行权限 + 应用结构）
+          ditto -c -k --sequesterRsrc --keepParent "AllInDream.app" "AllInDream-macOS-arm64.zip"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AllInDream-macOS-arm64
+          path: AllInDream-macOS-arm64.zip
