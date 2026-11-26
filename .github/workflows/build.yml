@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    export MACOSX_DEPLOYMENT_TARGET=10.15
+   
     # macos-latest 现在是 Apple Silicon (arm64)
     runs-on: macos-15
     steps:
@@ -20,10 +20,11 @@ jobs:
       - name: Compile (arm64)
         run: |
           clang -arch arm64 \
+                -mmacosx-version-min=13.0 \
                 -framework Cocoa \
                 -fobjc-arc \
                 -O2 \
-                main.m -o AllInDream
+                main.m -o AllInDream                
 
       - name: Verify binary
         run: |
